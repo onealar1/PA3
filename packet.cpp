@@ -9,7 +9,9 @@ Packet::Packet(int flag, int seqnum, int length, char* payload){
     this->flag = flag;
     this->seqnum = seqnum;
     this->length = length;
-    this->payload = payload;
+    this->payload = new char[length + 1];
+    strncpy(this->payload, payload, length);
+    this->payload[length] = '\0';
 }
 
 int Packet::getFlag(){
@@ -61,7 +63,7 @@ void Packet::deserialize(char* strpkt){
 
     else if (length > 0){ 
         token = strtok(NULL, "");
-        this->payload = new char[length];
+        this->payload = new char[length + 1];
         for(int i=0; i < length; i++){
             this->payload[i] = token[i];
         }

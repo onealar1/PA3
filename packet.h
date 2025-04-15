@@ -12,7 +12,7 @@ class Packet {
 
     public:
         Packet(int flag, int seqnum, int length, char* payload);
-
+        
         // getter methods
         int getFlag();
         int getSeqnum();
