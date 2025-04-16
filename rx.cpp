@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <fstream>
 
 using namespace std;
 
@@ -86,9 +87,12 @@ void init_talker(char* rx_addr, char* rx_port){
  * Helper method to send an acknowledgment
  */
 void sendACK(int ackSeq){
-    Packet ackPkt(0, ackSeq, "");
-    string serialized = ackPkt.serialize();
-    sendto(talker.sockfd, serialized.c_str(), serialized.length(), 0, talker.p->ai_addr, talker.p->ai_addrlen);
+    char empty[] = "";
+    Packet ackPkt(0, ackSeq, 0, empty);
+
+    char strpkt[1024];
+    ackPkt.serialize(strpkt);
+    sendto(talker.sockfd, strpkt, strlen(strpkt), 0, talker.p->ai_addr, talker.p->ai_addrlen);
 }
 
 void reliablyReceive(char* rx_addr, char* rx_port, char* tx_port, char* filename, int bytesToTransfer){
@@ -103,18 +107,21 @@ void reliablyReceive(char* rx_addr, char* rx_port, char* tx_port, char* filename
     // loop until all is received
     while (true) {
         memset(buffer, 0, sizeof(buffer));
-        socklen_t addr_len = sizeof(listener.p->ai_addr);
-        int bytesRec = recvfrom(listener.sockfd, buffer, sizeof(buffer), 0, listener.p->ai_addr, &addr_len);
+        sockaddr_storage tx_addr;
+        socklen_t addr_len = sizeof(tx_addr);
+        int bytesRec = recvfrom(listener.sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&tx_addr, &addr_len);
 
-        string raw(buffer, bytesRec);
         Packet pkt;
-        pkt.deserialize(buffer);
+        char buff2[1024];
+        memcpy(buff2, buffer, bytesRec);
+        buff2[bytesRec] = '\0';
+        pkt.deserialize(buff2);
 
         int flag = pkt.getFlag();
         int seq = pkt.getSeqnum();
 
         if (flag == 1 && seq == expectedSeq) { // data packet and expected
-            outfile.write(pkt.getPayload().c_str(), pkt.getLength());
+            outfile.write(pkt.getPayload(), pkt.getLength());
             sendACK(seq);
             expectedSeq = (expectedSeq + 1) % 10;
         } 

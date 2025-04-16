@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -164,15 +166,15 @@ void reliablyTransfer(char* rx_addr, char* rx_port, char* tx_port, char* filenam
 
     timeout(listener.sockfd, 5);
 
-    // add packets to window
-    char buffer[payloadSize + 1];
+    char buff[payloadSize + 1];
 
-    while (window.getSize() < window.getCapacity() && totalSent < bytesToTransfer) {
+    // add to window
+    while (window.getSize() < winSize && totalSent < bytesToTransfer) {
         int toRead = std::min(payloadSize, bytesToTransfer - totalSent);
-        int bytesRead = fread(buffer, sizeof(char), toRead, file);
-        buffer[bytesRead] = '\0';
+        int bytesRead = fread(buff, sizeof(char), toRead, file);
+        buff[bytesRead] = '\0';
 
-        Packet* pkt = new Packet(1, nextSeqNum, bytesRead, strdup(buffer));
+        Packet* pkt = new Packet(1, nextSeqNum, bytesRead, strdup(buff));
         char pktStr[1100];
         pkt->serialize(pktStr);
 
@@ -184,7 +186,7 @@ void reliablyTransfer(char* rx_addr, char* rx_port, char* tx_port, char* filenam
 
     // sending ACKs
     while (totalAcked < bytesToTransfer) {
-        char ackBuffer[100];
+        char ackBuffer[1024];
         int ackLen = recvfrom(listener.sockfd, ackBuffer, sizeof(ackBuffer), 0, NULL, NULL);
 
         // handling timeout
@@ -205,7 +207,7 @@ void reliablyTransfer(char* rx_addr, char* rx_port, char* tx_port, char* filenam
             }
         } 
         else {
-            ackBuf[ackLen] = '\0';
+            ackBuffer[ackLen] = '\0';
             Packet ackPkt(0, 0, 0, NULL);
             ackPkt.deserialize(ackBuffer);
 
@@ -230,6 +232,7 @@ void reliablyTransfer(char* rx_addr, char* rx_port, char* tx_port, char* filenam
                 nextSeqNum = (nextSeqNum + 1) % maxSeqNums;
             }
         }
+    }
 
     fclose(file);
     close(listener.sockfd);
@@ -251,5 +254,4 @@ int main(int argc, char* argv[]){
     reliablyTransfer(rx_addr, rx_port, tx_port, filepath, 50);
 
     return 0;
-
 }

@@ -14,6 +14,13 @@ Packet::Packet(int flag, int seqnum, int length, char* payload){
     this->payload[length] = '\0';
 }
 
+Packet::Packet(){
+    this->flag = 0;
+    this->seqnum = 0;
+    this->length = 0;
+    this->payload = NULL;
+}
+
 int Packet::getFlag(){
     return this->flag;
 }
